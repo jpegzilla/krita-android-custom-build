@@ -3,27 +3,24 @@
 from pathlib import Path
 import sys
 
-def sub(source, old, new, tag):
-    count=source.count(old)
-    if count!=1:
-        raise RuntimeError(f"Gallery tabs: {tag} expected 1 anchor, got {count}")
-    return source.replace(old,new,1)
+from patch_paths import replace_once
+
 
 def main(root):
     root=Path(root).resolve()
     path=root/"libs/ui/KisWelcomePageWidget.cpp"
     s=path.read_text(encoding="utf-8")
-    s=sub(s,"#include <QComboBox>\n",
+    s=replace_once(s,"#include <QComboBox>\n",
           "#include <QComboBox>\n#include <QTabWidget>\n#include <QTimer>\n#include <QJsonArray>\n#include <QJsonObject>\n#include <QJsonDocument>\n#include <QScroller>\n#include <QRegularExpression>\n#include <QDateTime>\n",
           "includes")
-    s=sub(s,
+    s=replace_once(s,
 '''QDirIterator iter(*folder, QStringList() << QStringLiteral("*.kra")
                                                         << QStringLiteral("*.krz"),''',
 '''QDirIterator iter(*folder, QStringList()
                                                         << QStringLiteral("*.kra*")
                                                         << QStringLiteral("*.krz*"),''',
           "folder compatible formats")
-    s=sub(s,
+    s=replace_once(s,
 '''        auto *galleryList = new QListWidget(galleryPage);''',
 '''        auto *galleryTabs = new QTabWidget(galleryPage);
         auto *galleryList = new QListWidget(galleryTabs);
@@ -32,7 +29,7 @@ def main(root):
         galleryList->viewport()->setAttribute(Qt::WA_AcceptTouchEvents,true);
         QScroller::grabGesture(galleryList->viewport(),QScroller::TouchGesture);''',
           "create tabs")
-    s=sub(s,
+    s=replace_once(s,
 '''        galleryLayout->addWidget(galleryList);
         pages->addWidget(galleryPage);''',
 '''        galleryTabs->addTab(galleryList, i18n("Selected folder"));
@@ -50,7 +47,7 @@ def main(root):
         galleryTabs->addTab(deviceList,i18n("Krita projects on device"));
         galleryLayout->addWidget(galleryTabs);
         pages->addWidget(galleryPage);''',"tab widgets")
-    s=sub(s,
+    s=replace_once(s,
 '''        auto populate = [this, galleryList, folder, sortMode]() {''',
 '''        auto populate = [this, galleryList, folder, sortMode]() {''',
           "population signature")
@@ -323,27 +320,27 @@ def main(root):
         }
 '''
     token="        connect(galleryButton, &QToolButton::clicked, this,"
-    s=sub(s,token,device_code+token,"device listing")
-    s=sub(s,
+    s=replace_once(s,token,device_code+token,"device listing")
+    s=replace_once(s,
 '''                [pages, galleryPage, galleryButton, populate, this]() {''',
 '''                [pages, galleryPage, galleryButton, galleryTabs, scanTimer,
                  populate, populateDevice, this]() {''',
           "gallery switching capture")
-    s=sub(s,
+    s=replace_once(s,
 '''                pages->setCurrentWidget(galleryPage);
                 galleryButton->setText(i18n("Recent Images"));''',
 '''                pages->setCurrentWidget(galleryPage);
                 if(galleryTabs->currentIndex()==1)populateDevice();
                 galleryButton->setText(i18n("Recent Images"));''',
           "device refresh on opening")
-    s=sub(s,
+    s=replace_once(s,
 '''            if (pages->currentWidget() == galleryPage) {
                 // Krita's recent-file model''',
 '''            if (pages->currentWidget() == galleryPage) {
                 scanTimer->stop();
                 // Krita's recent-file model''',
           "stop scan on leaving")
-    s=sub(s,
+    s=replace_once(s,
 '''        connect(refreshButton, &QPushButton::clicked, this, populate);''',
 '''        connect(refreshButton, &QPushButton::clicked, this,
                 [galleryTabs,populate,populateDevice]() {
@@ -351,7 +348,7 @@ def main(root):
             else populate();
         });''',
           "refresh current tab")
-    s=sub(s,
+    s=replace_once(s,
 '''        connect(sortMode, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
                 [populate](int) { populate(); });''',
 '''        connect(sortMode, QOverload<int>::of(&QComboBox::currentIndexChanged), this,
@@ -359,7 +356,7 @@ def main(root):
             if(galleryTabs->currentIndex()==1)populateDevice();
             else populate();
         });''',"sort current tab")
-    s=sub(s,
+    s=replace_once(s,
 '''        connect(galleryList, &QListWidget::itemClicked, this, [this](QListWidgetItem *item) {
             m_mainWindow->openDocument(item->data(Qt::UserRole).toString(), KisMainWindow::None);
         });''',
@@ -372,9 +369,9 @@ def main(root):
     # The selected-folder tab previously opened up to 2,000 KRA zip files
     # synchronously for thumbnails. Limit candidates and decode only visible
     # previews; the user can refine the selected folder if needed.
-    s=sub(s,"while (iter.hasNext() && files.size() < 2000)",
+    s=replace_once(s,"while (iter.hasNext() && files.size() < 2000)",
             "while (iter.hasNext() && files.size() < 350)","folder scan cap")
-    s=sub(s,"for (const QFileInfo &file : files) {",
+    s=replace_once(s,"for (const QFileInfo &file : files) {",
             """int rendered=0;
                 for (const QFileInfo &file : files) {
                     if (rendered>=120)break;
@@ -382,7 +379,7 @@ def main(root):
                             "(?i)\\\\.(?:kra|krz)(?: \\\\([0-9]+\\\\))?$"))
                             .match(file.fileName()).hasMatch())continue;
                     ++rendered;""","visible folder cap")
-    s=sub(s,"if (store && !store->bad()) {",
+    s=replace_once(s,"if (store && !store->bad()) {",
             "if (rendered<=48 && store && !store->bad()) {",
             "defer large folder previews")
     path.write_text(s,encoding="utf-8")
@@ -435,7 +432,7 @@ def main(root):
 
 '''
     marker="    private static final String TAG"
-    java=sub(java,marker,java_code+marker,"Java index helper")
+    java=replace_once(java,marker,java_code+marker,"Java index helper")
     java_path.write_text(java,encoding="utf-8")
     print("Gallery: tabs, indexed Android art and incremental shared-device scan applied")
 

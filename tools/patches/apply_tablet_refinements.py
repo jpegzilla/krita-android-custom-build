@@ -843,7 +843,6 @@ QHash<KisInputManager*, TabletReferenceDrag> tabletReferenceDrags;
     # Finish by updating Krita's mandatory XMLGUI version and stripped MD5.
     p = "krita/CMakeLists.txt"
     sub(p, "set(KRITA5_XMLGUI_VERSION 545)", "set(KRITA5_XMLGUI_VERSION 546)")
-    cmake = get(p)
     xml = get("krita/krita5.xmlgui")
     digest = hashlib.md5("".join(xml.split()).encode()).hexdigest()
     sub(p, 'set(krita5_xmlgui_hash_expected "a4656de215838ff1371d720f9c3d4b26")',

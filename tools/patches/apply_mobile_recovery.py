@@ -3,19 +3,16 @@
 from pathlib import Path
 import sys
 
-def one(source, old, new, label):
-    count=source.count(old)
-    if count != 1:
-        raise RuntimeError(f"Mobile recovery {label}: expected 1 anchor, found {count}")
-    return source.replace(old,new,1)
+from patch_paths import replace_once
+
 
 def main(root):
     path=Path(root)/"libs/ui/KisWelcomePageWidget.cpp"
     s=path.read_text(encoding="utf-8")
-    s=one(s, '#include <QLineEdit>\n',
+    s=replace_once(s, '#include <QLineEdit>\n',
           '#include <QLineEdit>\n#include "KisAutoSaveRecoveryDialog.h"\n',
           "native recovery location header")
-    s=one(s,
+    s=replace_once(s,
 '''        galleryControls->setColumnStretch(0,1);''',
 '''        auto *recoverButton=new QPushButton(i18n("Recover"),galleryPage);
         recoverButton->setIcon(KisIconUtils::loadIcon("document-revert"));
@@ -212,7 +209,7 @@ def main(root):
             dialog.exec();
         });
 '''
-    s=one(s,'''        galleryControls->setColumnStretch(0,1);''',
+    s=replace_once(s,'''        galleryControls->setColumnStretch(0,1);''',
           '''        galleryControls->setColumnStretch(0,1);'''+code,
           "recovery browser")
     path.write_text(s,encoding="utf-8")

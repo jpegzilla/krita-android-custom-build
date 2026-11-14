@@ -1,10 +1,10 @@
 """Test GitHub dashboard APK size formatting without making network calls."""
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "build"))
 import krita_build_reporter as reporter
 

@@ -11,13 +11,7 @@ import hashlib
 import re
 import sys
 
-from patch_paths import CORE, SRC
-
-def one(source, old, new, label):
-    count=source.count(old)
-    if count!=1:
-        raise RuntimeError(f"Mobile shell {label}: expected 1 anchor, got {count}")
-    return source.replace(old,new,1)
+from patch_paths import CORE, SRC, replace_once as one
 
 def redirect_android_engine_method(source:str, return_type:str, name:str, android_body:str):
     """Move Android resource/registry setup into a standalone engine TU.

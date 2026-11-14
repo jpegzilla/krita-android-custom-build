@@ -3,30 +3,27 @@
 from pathlib import Path
 import sys
 
-def sub(s,old,new,label):
-    count=s.count(old)
-    if count!=1:
-        raise RuntimeError(f"Mobile home {label}: expected one anchor, got {count}")
-    return s.replace(old,new,1)
+from patch_paths import replace_once
+
 
 def main(root):
     path=Path(root)/"libs/ui/KisWelcomePageWidget.cpp"
     s=path.read_text(encoding="utf-8")
-    s=sub(s,"#include <QTabWidget>\n",
+    s=replace_once(s,"#include <QTabWidget>\n",
           "#include <QTabWidget>\n#include <QTabBar>\n#include <QGridLayout>\n"
           "#include <QLineEdit>\n#include <QClipboard>\n"
           "#include <QAbstractItemModel>\n","includes")
     # Controls in two columns, so nothing is cut off in folded portrait.
-    s=sub(s,"auto *galleryControls = new QHBoxLayout;",
+    s=replace_once(s,"auto *galleryControls = new QHBoxLayout;",
           "auto *galleryControls = new QGridLayout;","gallery toolbar")
     for name,position in (
         ("folderButton","0,0"),("downloadsButton","0,1"),
         ("refreshButton","1,0"),("sortMode","1,1"),
         ("allowFiles","2,0,1,2"),("undoTrash","3,0,1,2")):
-        s=sub(s,f"galleryControls->addWidget({name});",
+        s=replace_once(s,f"galleryControls->addWidget({name});",
               f"galleryControls->addWidget({name},{position});",
               f"toolbar {name}")
-    s=sub(s,
+    s=replace_once(s,
 '''        galleryTabs->addTab(deviceList,i18n("Krita projects on device"));
         galleryLayout->addWidget(galleryTabs);''',
 '''        galleryTabs->addTab(deviceList,i18n("On device"));
@@ -129,15 +126,15 @@ def main(root):
         }
         scheduleFilter();
 '''
-    s=sub(s,"        auto suppressGalleryClick=std::make_shared<QSet<QListWidget*>>();",
+    s=replace_once(s,"        auto suppressGalleryClick=std::make_shared<QSet<QListWidget*>>();",
           filter_code+"        auto suppressGalleryClick=std::make_shared<QSet<QListWidget*>>();",
           "search and starred filter")
-    s=sub(s,
+    s=replace_once(s,
 '''                [this,heldIndex,heldList,suppressGalleryClick,moveToGalleryTrash]() {''',
 '''                [this,heldIndex,heldList,suppressGalleryClick,moveToGalleryTrash,
                  favorites,scheduleFilter]() {''',
           "long press captures")
-    s=sub(s,
+    s=replace_once(s,
 '''            QAction *trash=menu.addAction(
                 i18n("Move selected project to Trash (undoable)"));
             trash->setIcon(QIcon::fromTheme(QStringLiteral("user-trash")));
@@ -296,18 +293,18 @@ def main(root):
         recentDocumentsListView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         recentDocsStackedWidget->setMinimumHeight(200);
 '''
-    s=sub(s,'        connect(folderButton, &QPushButton::clicked, this,',
+    s=replace_once(s,'        connect(folderButton, &QPushButton::clicked, this,',
           home+'        connect(folderButton, &QPushButton::clicked, this,',
           "Android main start panel")
     # Consolidate gallery into a single On Device screen. The old selected
     # folder remains an internal fallback source, not a navigation tab.
-    s=sub(s,'        galleryLayout->addWidget(galleryTabs);',
+    s=replace_once(s,'        galleryLayout->addWidget(galleryTabs);',
 '''        galleryLayout->addWidget(galleryTabs);
         galleryTabs->setCurrentIndex(1);
         galleryTabs->tabBar()->hide();''',"single on-device gallery")
     # Hide obsolete controls without changing the tested file scan/permissions
     # logic; users retain access permissions if needed.
-    s=sub(s,'        syncUndo();\n        auto refreshGallery=',
+    s=replace_once(s,'        syncUndo();\n        auto refreshGallery=',
 '''        syncUndo();
         galleryControls->removeWidget(folderButton);
         galleryControls->removeWidget(downloadsButton);
@@ -338,7 +335,7 @@ def main(root):
         undoTrash->setFixedSize(65,42);
         allowFiles->setMinimumHeight(44);
         auto refreshGallery=''',"compact gallery toolbar")
-    s=sub(s,'''            undoTrash->setEnabled(!stack.isEmpty() &&
+    s=replace_once(s,'''            undoTrash->setEnabled(!stack.isEmpty() &&
                 QFileInfo(stack.last().toMap().value(
                     QStringLiteral("trash")).toString()).isFile());''',
 '''            undoTrash->setEnabled(!stack.isEmpty() &&
@@ -348,12 +345,12 @@ def main(root):
           "contextual undo button")
     # Save timestamp for reliable newest-first mode without opening project
     # archives just to sort. Alphabetical mode is case-insensitive.
-    s=sub(s,'            item->setData(Qt::UserRole,location);',
+    s=replace_once(s,'            item->setData(Qt::UserRole,location);',
 '''            item->setData(Qt::UserRole,location);
             item->setData(Qt::UserRole+5,physicalPath.isEmpty() ? 0LL :
                 QFileInfo(physicalPath).lastModified().toMSecsSinceEpoch());''',
           "project modification times")
-    s=sub(s,'        auto *searchRow=new QHBoxLayout;',
+    s=replace_once(s,'        auto *searchRow=new QHBoxLayout;',
 '''        const auto sortDevice=[deviceList,sortMode]() {
             if(deviceList->count()<2)return;
             QList<QListWidgetItem*> sorted;
@@ -385,13 +382,13 @@ def main(root):
         auto *searchRow=new QHBoxLayout;''',"device sorting")
     # The gallery is a project library, not a one-tap launcher. Both touch
     # and long-press now open the same spacious, touch-friendly project sheet.
-    s=sub(s,
+    s=replace_once(s,
 '''        auto suppressGalleryClick=std::make_shared<QSet<QListWidget*>>();''',
 '''        auto projectSheet=std::make_shared<
             std::function<void(QListWidgetItem*)>>();
         auto suppressGalleryClick=std::make_shared<QSet<QListWidget*>>();''',
         "project sheet dispatcher")
-    s=sub(s,
+    s=replace_once(s,
 '''        connect(deviceList,&QListWidget::itemClicked,this,
                 [this,deviceList,suppressGalleryClick](QListWidgetItem *item) {
             if(suppressGalleryClick->remove(deviceList))return;
@@ -403,7 +400,7 @@ def main(root):
             if(suppressGalleryClick->remove(deviceList))return;
             if(*projectSheet)(*projectSheet)(item);
         });''',"device tap opens project sheet")
-    s=sub(s,
+    s=replace_once(s,
 '''        connect(galleryList, &QListWidget::itemClicked, this,
                 [this,galleryList,suppressGalleryClick](QListWidgetItem *item) {
             if(suppressGalleryClick->remove(galleryList))return;
@@ -519,15 +516,15 @@ def main(root):
             sheet.exec();
         };
 '''
-    s=sub(s,'''        auto galleryHoldTimer=new QTimer(galleryPage);''',
+    s=replace_once(s,'''        auto galleryHoldTimer=new QTimer(galleryPage);''',
           sheet+'''        auto galleryHoldTimer=new QTimer(galleryPage);''',
           "project sheet definition")
-    s=sub(s,
+    s=replace_once(s,
 '''                [this,heldIndex,heldList,suppressGalleryClick,moveToGalleryTrash,
                  favorites,scheduleFilter]() {''',
 '''                [heldIndex,heldList,suppressGalleryClick,projectSheet]() {''',
           "long press project captures")
-    s=sub(s,
+    s=replace_once(s,
 '''            const QString path=index.data(Qt::UserRole).toString();
             suppressGalleryClick->insert(view);
             QMenu menu(this);

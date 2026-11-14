@@ -6,10 +6,13 @@ Its corresponding source header is copied into the patched Krita tree.
 Only Android builds compile the new widget. This patch runs after v1..v6.
 """
 from pathlib import Path
-import shutil
+import hashlib
+import re
+import subprocess
 import sys
 
 from patch_paths import CORE
+
 
 def main(root: Path):
     root=root.resolve()
@@ -49,7 +52,6 @@ def main(root: Path):
     # globally. Compact UI now has an entirely separate configurable toolbar,
     # so reset native Krita's default toolbar/menu layout and inject ONLY the
     # persistent mode toggle into the normal toolbar.
-    import subprocess, hashlib, re
     source_xml=subprocess.check_output(
         ["git","-C",str(root),"show","HEAD:krita/krita5.xmlgui"],
         text=True)

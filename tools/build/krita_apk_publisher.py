@@ -7,7 +7,6 @@ Never requires a GitHub credential in this repository.
 """
 import argparse
 import datetime as dt
-import hashlib
 import json
 import re
 import os
@@ -17,6 +16,8 @@ import subprocess
 import sys
 import tempfile
 import zipfile
+
+from apk_size_report import digest as sha256
 
 REPOSITORY = "murrdusa/krita-android-custom-build"
 DEFAULT_TAG = "krita-android-latest"
@@ -31,14 +32,6 @@ def run(args, timeout=600):
 
 def gh(*args, timeout=600):
     return run(["gh", *args], timeout=timeout)
-
-
-def sha256(path):
-    digest = hashlib.sha256()
-    with path.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def github_status(revision, state, description, target):

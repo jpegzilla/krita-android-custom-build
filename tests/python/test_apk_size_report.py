@@ -1,16 +1,16 @@
 """Standard-library tests for the non-publishing local APK size audit.
 
-Run: python3 -m unittest discover -s tests -p 'test_apk_size_report.py'
+Run: python3 -m unittest discover -s tests/python -p 'test_apk_size_report.py'
 """
 import contextlib
 import io
 import json
+import sys
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "tools" / "build"))
 import apk_size_report as report
 

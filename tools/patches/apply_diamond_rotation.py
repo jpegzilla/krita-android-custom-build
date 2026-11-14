@@ -3,19 +3,16 @@
 from pathlib import Path
 import sys
 
-def one(s, old, new, label):
-    count=s.count(old)
-    if count!=1:
-        raise RuntimeError(f"Diamond rotation {label}: expected 1 anchor, got {count}")
-    return s.replace(old,new,1)
+from patch_paths import replace_once
+
 
 def main(root):
     source=Path(root)/"libs/widgets/KisVisualDiamondSelectorShape.cpp"
     s=source.read_text(encoding="utf-8")
-    s=one(s,"#include <QPainter>\n",
+    s=replace_once(s,"#include <QPainter>\n",
           "#include <QPainter>\n#include <QSettings>\n#include <QtMath>\n",
           "cpp includes")
-    s=one(s,
+    s=replace_once(s,
 '''    return QPointF(x, y);
 }
 
@@ -25,7 +22,7 @@ QPointF KisVisualDiamondSelectorShape::convertWidgetCoordinateToShapeCoordinate'
 
 QPointF KisVisualDiamondSelectorShape::convertWidgetCoordinateToShapeCoordinate''',
           "forward mapping")
-    s=one(s,
+    s=replace_once(s,
 '''QPointF KisVisualDiamondSelectorShape::convertWidgetCoordinateToShapeCoordinate(QPointF coordinate) const
 {
     // margin serves''',
@@ -34,7 +31,7 @@ QPointF KisVisualDiamondSelectorShape::convertWidgetCoordinateToShapeCoordinate'
     coordinate = m_squareRotationInverse.map(coordinate);
     // margin serves''',
           "inverse mapping")
-    s=one(s,
+    s=replace_once(s,
 '''    return QRegion(maskPoly);
 }
 
@@ -52,14 +49,14 @@ QImage KisVisualDiamondSelectorShape::renderAlphaMask()''',
 
 QImage KisVisualDiamondSelectorShape::renderAlphaMask()''',
           "unclipped rotated touch mask")
-    s=one(s,
+    s=replace_once(s,
 '''    painter.setPen(Qt::NoPen);
     QPointF diamond[4] = {''',
 '''    painter.setPen(Qt::NoPen);
     painter.setWorldTransform(m_squareRotation, true);
     QPointF diamond[4] = {''',
           "rotated alpha mask")
-    s=one(s,
+    s=replace_once(s,
 '''void KisVisualDiamondSelectorShape::drawCursor(QPainter &painter)''',
 '''void KisVisualDiamondSelectorShape::paintEvent(QPaintEvent *event)
 {
@@ -92,17 +89,17 @@ void KisVisualDiamondSelectorShape::drawCursor(QPainter &painter)''',
     source.write_text(s,encoding="utf-8")
     header=Path(root)/"libs/widgets/KisVisualDiamondSelectorShape.h"
     h=header.read_text(encoding="utf-8")
-    h=one(h,'#include "KisVisualColorSelectorShape.h"\n',
+    h=replace_once(h,'#include "KisVisualColorSelectorShape.h"\n',
           '#include "KisVisualColorSelectorShape.h"\n#include <QTransform>\n',
           "header includes")
-    h=one(h,
+    h=replace_once(h,
 '''protected:
     QImage renderAlphaMask() const override;''',
 '''protected:
     void paintEvent(QPaintEvent *event) override;
     QImage renderAlphaMask() const override;''',
           "paint declaration")
-    h=one(h,
+    h=replace_once(h,
 '''    int m_margin { 5 };
 };''',
 '''    int m_margin { 5 };
@@ -118,10 +115,10 @@ void KisVisualDiamondSelectorShape::drawCursor(QPainter &painter)''',
     # retains its original ring geometry and minimum slider target.
     visual=Path(root)/"libs/widgets/KisVisualColorSelector.cpp"
     v=visual.read_text(encoding="utf-8")
-    v=one(v,"#include <QVector4D>\n",
+    v=replace_once(v,"#include <QVector4D>\n",
           "#include <QVector4D>\n#include <QSettings>\n",
           "selector settings header")
-    v=one(v,"    const qreal sliderRatio = 0.09;\n",
+    v=replace_once(v,"    const qreal sliderRatio = 0.09;\n",
           '''    const bool compactSelector=QSettings().value(
         QStringLiteral("TabletUi/compact"),false).toBool();
     const qreal sliderRatio=compactSelector ? 0.055 : 0.09;

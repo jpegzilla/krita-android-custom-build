@@ -8,14 +8,7 @@ Run after other Krita source patches in local-build.sh.
 from pathlib import Path
 import sys
 
-from patch_paths import CORE
-
-
-def replace_once(text: str, old: str, new: str, label: str) -> str:
-    count = text.count(old)
-    if count != 1:
-        raise RuntimeError(f"Finger pressure {label}: expected 1 anchor, got {count}")
-    return text.replace(old, new, 1)
+from patch_paths import CORE, replace_once
 
 
 def main(root: Path) -> None:

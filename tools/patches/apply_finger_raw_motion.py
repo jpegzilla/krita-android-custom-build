@@ -8,14 +8,7 @@ stylus and brush routing. The Java trampoline stores size only, never points.
 from pathlib import Path
 import sys
 
-from patch_paths import CORE
-
-
-def replace_once(source, old, new, label):
-    n=source.count(old)
-    if n!=1:
-        raise RuntimeError(f"Raw finger bridge {label}: expected 1 anchor, got {n}")
-    return source.replace(old,new,1)
+from patch_paths import CORE, replace_once
 
 
 def main(root):

@@ -4,8 +4,6 @@ Apply after apply_customizations.py, apply_tablet_update.py, apply_tablet_refine
 Target is KDE/Krita v6.0.4, Qt5/Android. Source replacement is strictly checked.
 """
 from pathlib import Path
-import hashlib
-import re
 import sys
 
 def main(root):
