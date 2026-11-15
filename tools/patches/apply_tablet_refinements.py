@@ -4,6 +4,8 @@ from pathlib import Path
 import hashlib
 import sys
 
+from patch_paths import fragment
+
 def main(root: Path):
     changed = {}
     def get(path):
@@ -222,83 +224,7 @@ def main(root: Path):
     def quick_actions(s):
         start = s.index("    QMenu *quickMenu = new QMenu(i18n(\"Quick Actions\"), this);")
         stop = s.index("\n#endif\n\n    d->recentFiles", start)
-        replacement = r'''    QMenu *quickMenu = new QMenu(i18n("Quick Actions"), this);
-    quickMenu->menuAction()->setIcon(KisIconUtils::loadIcon("application-menu"));
-    actionCollection()->addAction(QStringLiteral("tablet_quick_actions"), quickMenu->menuAction());
-    const QStringList tabletQuickAvailable = {
-        QStringLiteral("gradients"), QStringLiteral("patterns"),
-        QStringLiteral("file_new"), QStringLiteral("file_open"),
-        QStringLiteral("file_save_as"), QStringLiteral("file_export_file"),
-        QStringLiteral("select_all"), QStringLiteral("invert_selection"),
-        QStringLiteral("reselect"), QStringLiteral("deselect"),
-        QStringLiteral("fill_selection_foreground_color"),
-        QStringLiteral("cut_selection_to_new_layer"),
-        QStringLiteral("duplicate_layer"), QStringLiteral("merge_layer"),
-        QStringLiteral("quick_group"), QStringLiteral("edit_undo"),
-        QStringLiteral("edit_redo"), QStringLiteral("tablet_reset_view"),
-        QStringLiteral("tablet_settings")
-    };
-    const QStringList tabletQuickDefaults = {
-        QStringLiteral("gradients"), QStringLiteral("patterns"),
-        QStringLiteral("duplicate_layer"), QStringLiteral("quick_group"),
-        QStringLiteral("tablet_settings")
-    };
-    QAction *customizeQuick = new QAction(i18n("Customize Quick Actions..."), this);
-    connect(customizeQuick, &QAction::triggered, this,
-            [this, tabletQuickAvailable, tabletQuickDefaults]() {
-        QDialog dialog(this);
-        dialog.setWindowFlags(Qt::Popup|Qt::FramelessWindowHint);
-        dialog.setWindowTitle(i18n("Customize Quick Actions"));
-        auto *layout = new QVBoxLayout(&dialog);
-        auto *info = new QLabel(i18n("Check actions to show. Drag rows to change their order."), &dialog);
-        layout->addWidget(info);
-        auto *list = new QListWidget(&dialog);
-        list->setDragDropMode(QAbstractItemView::InternalMove);
-        list->setDefaultDropAction(Qt::MoveAction);
-        layout->addWidget(list);
-        QStringList selected = QSettings().value(
-            QStringLiteral("TabletUi/quickActionsV2"), tabletQuickDefaults).toStringList();
-        QStringList ordered = selected;
-        for (const QString &name : tabletQuickAvailable) {
-            if (!ordered.contains(name)) ordered.append(name);
-        }
-        for (const QString &name : ordered) {
-            if (!tabletQuickAvailable.contains(name)) continue;
-            QAction *action = actionCollection()->action(name);
-            QString label = action && !action->text().isEmpty() ? action->text() : name;
-            auto *item = new QListWidgetItem(label.remove(QLatin1Char('&')), list);
-            item->setData(Qt::UserRole, name);
-            item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsDragEnabled);
-            item->setCheckState(selected.contains(name) ? Qt::Checked : Qt::Unchecked);
-        }
-        auto *buttons = new QDialogButtonBox(
-            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
-        layout->addWidget(buttons);
-        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
-        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
-        if (dialog.exec() == QDialog::Accepted) {
-            QStringList chosen;
-            for (int i = 0; i < list->count(); ++i) {
-                auto *item = list->item(i);
-                if (item->checkState() == Qt::Checked)
-                    chosen << item->data(Qt::UserRole).toString();
-            }
-            QSettings().setValue(QStringLiteral("TabletUi/quickActionsV2"), chosen);
-        }
-    });
-    connect(quickMenu, &QMenu::aboutToShow, this,
-            [this, quickMenu, customizeQuick, tabletQuickDefaults]() {
-        quickMenu->clear();
-        const QStringList selected = QSettings().value(
-            QStringLiteral("TabletUi/quickActionsV2"), tabletQuickDefaults).toStringList();
-        for (const QString &name : selected) {
-            QAction *action = actionCollection()->action(name);
-            if (action) quickMenu->addAction(action);
-        }
-        quickMenu->addSeparator();
-        quickMenu->addAction(customizeQuick);
-    });
-'''
+        replacement = fragment("tablet_refinements/225-qmenu-quickmenu-new-qmenu-i1.inc")
         return s[:start] + replacement + s[stop:]
     edit(p, quick_actions)
     sub(p, "#include <QListWidget>\n",
@@ -383,51 +309,7 @@ import android.os.Looper;""")
     p = "krita/main.cc"
     sub(p, """#define MAIN_EXPORT __attribute__ ((visibility ("default")))
 #define MAIN_FN main""",
-           r'''// Action IDs: 0 disabled, 1 undo, 2 redo, 3 eraser, 4 pick once,
- // 5 increase brush size, 6 decrease brush size.
-extern "C" JNIEXPORT jint JNICALL
-Java_org_krita_android_JNIWrappers_volumeKeyAction(JNIEnv*, jobject, jboolean up, jboolean longPress)
-{
-    QSettings s;
-    if (longPress && !s.value(QStringLiteral("TabletUi/volumeLongEnabled"), true).toBool()) return 0;
-    if (!longPress && !s.value(QStringLiteral("TabletUi/volumeShortEnabled"), true).toBool()) return 0;
-    const QString key = up
-       ? (longPress ? QStringLiteral("TabletUi/volumeUpLong") : QStringLiteral("TabletUi/volumeUpShort"))
-       : (longPress ? QStringLiteral("TabletUi/volumeDownLong") : QStringLiteral("TabletUi/volumeDownShort"));
-    const int fallback = up ? (longPress ? 3 : 2) : (longPress ? 4 : 1);
-    return qBound(0, s.value(key, fallback).toInt(), 6);
-}
-
-extern "C" JNIEXPORT jint JNICALL
-Java_org_krita_android_JNIWrappers_volumeLongPressMs(JNIEnv*, jobject)
-{
-    return qBound(80, QSettings().value(QStringLiteral("TabletUi/volumeLongMs"), 200).toInt(), 1000);
-}
-
-extern "C" JNIEXPORT void JNICALL
-Java_org_krita_android_JNIWrappers_volumeExecute(JNIEnv*, jobject, jint code)
-{
-    if (code <= 0 || code > 6 || !KisPart::exists()) return;
-    KisMainWindow *window = KisPart::instance()->currentMainwindow();
-    if (!window) return;
-    QMetaObject::invokeMethod(window, [window, code]() {
-        if (code == 1 || code == 2) {
-            QMetaObject::invokeMethod(window, code == 1 ? "undo" : "redo",
-                                      Qt::DirectConnection);
-            return;
-        }
-        QString name;
-        if (code == 3) name = QStringLiteral("erase_action");
-        if (code == 4) name = QStringLiteral("tablet_pick_once");
-        if (code == 5) name = QStringLiteral("increase_brush_size");
-        if (code == 6) name = QStringLiteral("decrease_brush_size");
-        if (QAction *action = window->actionCollection()->action(name))
-            action->trigger();
-    }, Qt::QueuedConnection);
-}
-
-#define MAIN_EXPORT __attribute__ ((visibility ("default")))
-#define MAIN_FN main''')
+           fragment("tablet_refinements/386-action-ids-0-disabled-1-undo.inc"))
     p = "libs/ui/KisMainWindow.cpp"
     sub(p, """        form->addRow(volumeKeys);
         QCheckBox *pinchEnabled""",
@@ -714,80 +596,7 @@ QHash<KisInputManager*, TabletReferenceDrag> tabletReferenceDrags;
         quickMenu->addAction(customizeQuick);
     });
 """,
-           r'''    connect(quickMenu, &QMenu::aboutToShow, this,
-            [this, quickMenu, customizeQuick, tabletQuickDefaults]() {
-        quickMenu->clear();
-        const QStringList selected = QSettings().value(
-            QStringLiteral("TabletUi/quickActionsV2"), tabletQuickDefaults).toStringList();
-        for (const QString &name : selected) {
-            QAction *action = actionCollection()->action(name);
-            if (action) quickMenu->addAction(action);
-        }
-        quickMenu->addSeparator();
-        // Flatten one level: native menu entries directly in Quick Actions.
-        for(QAction *topLevel:menuBar()->actions()) {
-            if(QMenu *native=topLevel->menu())
-                quickMenu->addMenu(native);
-        }
-        quickMenu->addSeparator();
-        quickMenu->addAction(customizeQuick);
-    });
-
-    QToolBar *tabletTransformBar = new QToolBar(i18n("Transform Actions"), this);
-    tabletTransformBar->setObjectName(QStringLiteral("tabletTransformContextBar"));
-    tabletTransformBar->setMovable(false);
-    tabletTransformBar->setFloatable(false);
-    tabletTransformBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
-    auto *transformModeButton = new QToolButton(tabletTransformBar);
-    transformModeButton->setText(i18n("Mode"));
-    transformModeButton->setPopupMode(QToolButton::InstantPopup);
-    auto *transformModeMenu = new QMenu(transformModeButton);
-    auto getTransformTool = [this]() -> KoToolBase* {
-        KisCanvas2 *canvas = d->viewManager->canvasBase();
-        if (!canvas) return nullptr;
-        return KoToolManager::instance()->toolById(canvas, QStringLiteral("KisToolTransform"));
-    };
-    const QStringList transformNames = {
-        i18n("Free"), i18n("Warp"), i18n("Cage"),
-        i18n("Liquify"), i18n("Perspective"), i18n("Mesh")};
-    for (int mode = 0; mode < transformNames.size(); ++mode) {
-        QAction *choice = transformModeMenu->addAction(transformNames.at(mode));
-        connect(choice, &QAction::triggered, this, [getTransformTool, mode]() {
-            if (KoToolBase *tool = getTransformTool())
-                tool->setProperty("transformMode", mode);
-        });
-    }
-    transformModeButton->setMenu(transformModeMenu);
-    tabletTransformBar->addWidget(transformModeButton);
-    QAction *resetTransform = tabletTransformBar->addAction(i18n("Reset"));
-    connect(resetTransform, &QAction::triggered, this, [getTransformTool]() {
-        if (KoToolBase *tool = getTransformTool())
-            QMetaObject::invokeMethod(tool, "slotRestartTransform", Qt::DirectConnection);
-    });
-    QAction *cancelTransform = tabletTransformBar->addAction(i18n("Cancel"));
-    connect(cancelTransform, &QAction::triggered, this, [getTransformTool]() {
-        if (KoToolBase *tool = getTransformTool())
-            QMetaObject::invokeMethod(tool, "slotCancelTransform", Qt::DirectConnection);
-    });
-    QAction *applyTransform = tabletTransformBar->addAction(i18n("Apply"));
-    connect(applyTransform, &QAction::triggered, this, [getTransformTool]() {
-        if (KoToolBase *tool = getTransformTool())
-            QMetaObject::invokeMethod(tool, "applyTransform", Qt::DirectConnection);
-    });
-    addToolBar(Qt::BottomToolBarArea, tabletTransformBar);
-    tabletTransformBar->hide();
-    auto updateTabletTransformBar = [this, tabletCompact, tabletTransformBar]() {
-        const bool active = d->viewManager->canvasBase() &&
-            KoToolManager::instance()->activeToolId() == QStringLiteral("KisToolTransform");
-        tabletTransformBar->setVisible(tabletCompact->isChecked() && active);
-    };
-    connect(KoToolManager::instance(), &KoToolManager::changedTool, this,
-            [updateTabletTransformBar](KoCanvasController *) {
-        updateTabletTransformBar();
-    });
-    connect(tabletCompact, &QAction::toggled, this,
-            [updateTabletTransformBar](bool) { updateTabletTransformBar(); });
-''')
+           fragment("tablet_refinements/717-connect-quickmenu-qmenu-abou.inc"))
     # Grow / Shrink / Feather are selection-specific operations from Krita's
     # own modify-selection extension. Show them only when that extension's
     # actions are registered rather than adding global, unrelated buttons.

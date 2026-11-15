@@ -7,6 +7,11 @@ CORE = REPO / "mobile_studio" / "include" / "mobile_studio"
 SRC = REPO / "mobile_studio" / "src"
 
 
+def fragment(name):
+    """Read an injected source fragment. Not a standalone translation unit."""
+    return (PATCH_DIR / "fragments" / name).read_text(encoding="utf-8")
+
+
 def replace_once(text, old, new, label):
     count = text.count(old)
     if count != 1:

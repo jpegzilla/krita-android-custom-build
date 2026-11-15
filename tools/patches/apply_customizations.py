@@ -6,6 +6,8 @@ docker and a welcome-page .kra thumbnail gallery. Not compiled or tested.
 from pathlib import Path
 import sys
 
+from patch_paths import fragment
+
 def main(root):
     if not (root / 'libs/ui/KisWelcomePageWidget.cpp').is_file():
         raise SystemExit('Pass the root of Krita tag v6.0.4')
@@ -145,72 +147,7 @@ bool KisTouchShortcut::matchDragType(QTouchEvent *event)
         goodCandidate->action()->deactivate(goodCandidate->shortcutIndex());
     }
 }
-''', '''void KisShortcutMatcher::fireReadyTouchShortcut(QTouchEvent *event, bool bypassDoubleTap)
-{
-    KisTouchShortcut *doubleTap = nullptr;
-    if (!bypassDoubleTap && !m_d->isTouchHeld && !m_d->isTouchDragDetected &&
-        event->touchPoints().size() == 1 && !m_d->actionsSuppressedIgnoreFocus()) {
-        for (KisTouchShortcut *shortcut : m_d->touchShortcuts) {
-            if (shortcut->matchDoubleTapType(event) &&
-                shortcut->isAvailable(m_d->actionGroupMask()) &&
-                (!doubleTap || shortcut->priority() > doubleTap->priority())) {
-                doubleTap = shortcut;
-            }
-        }
-    }
-    if (doubleTap) {
-        const QPointF point = event->touchPoints().first().pos();
-        const qreal threshold = qMax(qreal(24), qreal(QApplication::startDragDistance()) * 2);
-        const QPointF delta = point - m_d->lastOneFingerTapPosition;
-        const bool nearby = delta.x() * delta.x() + delta.y() * delta.y() <= threshold * threshold;
-        if (m_d->pendingSingleTapTimer.isActive() &&
-            m_d->lastOneFingerTapAge.isValid() &&
-            m_d->lastOneFingerTapAge.elapsed() <= QApplication::doubleClickInterval() && nearby) {
-            m_d->pendingSingleTapTimer.stop();
-            m_d->pendingSingleTapEvent.reset();
-            m_d->lastOneFingerTapAge.invalidate();
-            doubleTap->action()->activate(doubleTap->shortcutIndex());
-            doubleTap->action()->begin(doubleTap->shortcutIndex(), event);
-            doubleTap->action()->end(event);
-            doubleTap->action()->deactivate(doubleTap->shortcutIndex());
-            return;
-        }
-        if (m_d->pendingSingleTapEvent) {
-            m_d->pendingSingleTapTimer.stop();
-            auto *queued = static_cast<QTouchEvent *>(m_d->pendingSingleTapEvent.data());
-            fireReadyTouchShortcut(queued, true);
-            m_d->pendingSingleTapEvent.reset();
-        }
-        m_d->lastOneFingerTapPosition = point;
-        m_d->lastOneFingerTapAge.start();
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-        KoPointerEvent::copyQtPointerEvent(event, m_d->pendingSingleTapEvent);
-#else
-        m_d->pendingSingleTapEvent.reset(event->clone());
-#endif
-        m_d->pendingSingleTapTimer.start(QApplication::doubleClickInterval());
-        return;
-    }
-    KisTouchShortcut *candidate = nullptr;
-    if (bypassDoubleTap) {
-        for (KisTouchShortcut *shortcut : m_d->touchShortcuts) {
-            if (shortcut->matchTapType(event) &&
-                shortcut->isAvailable(m_d->actionGroupMask()) &&
-                (!candidate || shortcut->priority() > candidate->priority())) {
-                candidate = shortcut;
-            }
-        }
-    } else {
-        candidate = matchTouchShortcut(event);
-    }
-    if (candidate && !m_d->actionsSuppressedIgnoreFocus()) {
-        candidate->action()->activate(candidate->shortcutIndex());
-        candidate->action()->begin(candidate->shortcutIndex(), event);
-        candidate->action()->end(event);
-        candidate->action()->deactivate(candidate->shortcutIndex());
-    }
-}
-''')
+''', fragment("customizations/148-void-kisshortcutmatcher-fire.inc"))
     replace(p, '''void KisShortcutMatcher::clearShortcuts()
 {
     reset("Clearing shortcuts");
@@ -273,117 +210,7 @@ bool KisTouchShortcut::matchDragType(QTouchEvent *event)
 #include <algorithm>
 ''')
     replace(p, '''        connect(openFileLink, SIGNAL(clicked(bool)), this, SLOT(slotOpenFileClicked()));
-''', '''        connect(openFileLink, SIGNAL(clicked(bool)), this, SLOT(slotOpenFileClicked()));
-#ifdef Q_OS_ANDROID
-        auto *galleryButton = new QToolButton(this);
-        galleryButton->setText(i18n("Project Gallery"));
-        horizontalLayout_2->addWidget(galleryButton);
-        connect(galleryButton, &QToolButton::clicked, this, [this]() {
-            QDialog gallery(this);
-            gallery.setWindowTitle(i18n("Project Gallery"));
-            gallery.resize(760, 640);
-            auto *column = new QVBoxLayout(&gallery);
-            auto *buttons = new QHBoxLayout;
-            auto *chooseFolder = new QPushButton(i18n("Choose Folder"), &gallery);
-            auto *refresh = new QPushButton(i18n("Refresh"), &gallery);
-            auto *newCanvas = new QPushButton(i18n("New Canvas"), &gallery);
-            buttons->addWidget(chooseFolder);
-            buttons->addWidget(refresh);
-            buttons->addStretch(1);
-            buttons->addWidget(newCanvas);
-            column->addLayout(buttons);
-            auto *projectList = new QListWidget(&gallery);
-            projectList->setViewMode(QListView::IconMode);
-            projectList->setIconSize(QSize(156, 156));
-            projectList->setGridSize(QSize(184, 205));
-            projectList->setResizeMode(QListView::Adjust);
-            projectList->setMovement(QListView::Static);
-            projectList->setWordWrap(true);
-            projectList->setSpacing(5);
-            column->addWidget(projectList);
-            QSettings settings;
-            QString folder = settings.value(QStringLiteral("CustomProjectGalleryFolder"),
-                                            QDir::homePath()).toString();
-            auto populate = [&]() {
-                projectList->clear();
-                if (!folder.isEmpty() && QDir(folder).exists()) {
-                    QFileInfoList projects;
-                    QDirIterator iter(folder, QStringList() << QStringLiteral("*.kra")
-                                                            << QStringLiteral("*.krz"),
-                                      QDir::Files, QDirIterator::Subdirectories);
-                    while (iter.hasNext() && projects.size() < 2000) {
-                        iter.next();
-                        projects.append(iter.fileInfo());
-                    }
-                    std::sort(projects.begin(), projects.end(),
-                              [](const QFileInfo &a, const QFileInfo &b) {
-                                  return a.lastModified() > b.lastModified();
-                              });
-                    for (const QFileInfo &file : projects) {
-                        QIcon thumbnail;
-                        QScopedPointer<KoStore> store(KoStore::createStore(file.absoluteFilePath(), KoStore::Read));
-                        if (store && !store->bad()) {
-                            for (const QString &entry : {QStringLiteral("preview.png"),
-                                                         QStringLiteral("Thumbnails/thumbnail.png")}) {
-                                if (!store->hasFile(entry) || !store->open(entry)) continue;
-                                QImage image;
-                                image.loadFromData(store->read(store->size()), "PNG");
-                                store->close();
-                                if (!image.isNull()) {
-                                    thumbnail = QIcon(QPixmap::fromImage(image.scaled(
-                                        156, 156, Qt::KeepAspectRatio, Qt::SmoothTransformation)));
-                                    break;
-                                }
-                            }
-                        }
-                        auto *item = new QListWidgetItem(thumbnail, file.completeBaseName(), projectList);
-                        item->setData(Qt::UserRole, file.absoluteFilePath());
-                    }
-                }
-                // Include Krita's recent documents, including content:// URIs,
-                // which normal filesystem scanning cannot enumerate.
-                QSet<QString> seen;
-                for (int i = 0; i < projectList->count(); ++i) {
-                    seen.insert(projectList->item(i)->data(Qt::UserRole).toString());
-                }
-                const QAbstractItemModel *recent = recentDocumentsListView->model();
-                if (recent) {
-                    for (int row = 0; row < recent->rowCount(); ++row) {
-                        QModelIndex index = recent->index(row, 0);
-                        QString uri = index.data(Qt::ToolTipRole).toString();
-                        if (uri.isEmpty() || seen.contains(uri)) continue;
-                        QIcon icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
-                        auto *item = new QListWidgetItem(icon, index.data(Qt::DisplayRole).toString(), projectList);
-                        item->setData(Qt::UserRole, uri);
-                        seen.insert(uri);
-                    }
-                }
-            };
-            connect(chooseFolder, &QPushButton::clicked, &gallery, [&]() {
-                QString path = QFileDialog::getExistingDirectory(
-                    &gallery, i18n("Choose a Krita Projects Folder"), folder);
-                if (!path.isEmpty()) {
-                    folder = path;
-                    settings.setValue(QStringLiteral("CustomProjectGalleryFolder"), folder);
-                    populate();
-                }
-            });
-            connect(refresh, &QPushButton::clicked, &gallery, populate);
-            connect(newCanvas, &QPushButton::clicked, &gallery, [&]() {
-                gallery.accept();
-                slotNewFileClicked();
-            });
-            connect(projectList, &QListWidget::itemClicked, &gallery,
-                    [&](QListWidgetItem *item) {
-                        if (m_mainWindow->openDocument(item->data(Qt::UserRole).toString(), KisMainWindow::None)) {
-                            gallery.accept();
-                        }
-                    });
-            populate();
-            gallery.exec();
-        });
-#endif
-''')
+''', fragment("customizations/276-connect-openfilelink-signal-.inc"))
     # KDE's older Exiv2 finder expects "(0)" while current headers use "(0U)".
     # The generated EXV_PACKAGE_VERSION string is stable across both formats.
     p = 'cmake/modules/FindLibExiv2.cmake'
