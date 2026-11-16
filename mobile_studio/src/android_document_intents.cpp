@@ -25,6 +25,7 @@ QPointer<QWidget> s_window;
 QSharedPointer<MobileDocumentHostPort> s_documentHost;
 QStringList s_pending;
 bool s_opening=false;
+QMetaObject::Connection s_destroyConnection;
 
 int drain()
 {
@@ -85,9 +86,12 @@ int MobileAndroidDocumentIntents::attachAndOpen(
 {
     if(!active() || !window || !documents || !documents->available())
         return 0;
+    QObject::disconnect(s_destroyConnection);
     s_window=window;
     s_documentHost=documents;
-    QObject::connect(window,&QObject::destroyed,[](QObject*) {
+    s_destroyConnection=QObject::connect(window,&QObject::destroyed,[window](QObject*) {
+        // a stale handler must not unbind a newer attach
+        if(s_window.data() && s_window.data()!=window)return;
         s_window=nullptr;
         s_documentHost.clear();
     });

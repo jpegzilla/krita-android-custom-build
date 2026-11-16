@@ -140,18 +140,9 @@ serialization or brushes.
   now fail safely or use Qt-native document close events.
   These are real-engine source boundaries, still awaiting full Android
   compilation and actual stroke validation.
-- **Compiler coverage gap closed in source.** The independent engine
-  headers used to be copied into Krita's tree but were never included by
-  any built target. `mobile_native_engine_compile_probe.cpp` now imports
-  all the native Krita view/runtime/document interfaces, and
-  `tools/patches/apply_mobile_shell.py` adds it to the Android `kritaui` library
-  source list. The next real Android `kritaui` compile will therefore
-  type-check these engine APIs, exposing compilation problems that
-  static source tests cannot find. This is not a claim that a real
-  compile already passed.
 - Android compiler-only CI now reads CMake's actual
   `compile_commands.json` and first runs a `-fsyntax-only` check
-  against `mobile_native_engine_compile_probe.cpp`, reusing the
+  against `engine_only_bootstrap.cpp`, reusing the
   genuine Android Clang flags and Krita include directories.
   A standalone API mismatch therefore fails before the much slower
   full `kritaui` compilation. If that preflight passes, the complete

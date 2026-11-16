@@ -14,6 +14,7 @@ bool MobileKritaApplicationEntry::start()
 {
     // Preserve crash diagnostics without providing or selecting another
     // application interface. Canvas success is reported asynchronously.
+    // entry bypasses begin() on purpose: the v2 enable flag and legacy startup keys aren't consulted.
     QSettings settings;
     const QString pending=MobileEngineOnlyStartupPolicy::pendingKey();
     if(settings.value(pending,false).toBool())

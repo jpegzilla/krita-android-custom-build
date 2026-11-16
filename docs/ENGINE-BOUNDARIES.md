@@ -417,7 +417,7 @@ tools/patches/
 docs/
   ENGINE-BOUNDARIES.md    this specification and migration plan
 
-Krita 5.3.4 (KDE source v6.0.4)
+Krita 5.3.4 built from KDE source tag v6.0.4
   KisMainWindow
   KisViewManager / KisCanvas2 / paint operations
   KisNodeManager / KisSelectionManager / Transform tools

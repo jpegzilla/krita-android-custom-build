@@ -78,13 +78,13 @@ jobs:
           DOCKER_ENV_SHA=2eecb35629790f56e7be6db19cefcb987cf1b503
           DEPS_MGMT_SHA=0cdfcbf8e10ef18fbd299b29aeb7568ce385e5dc
           CI_UTILS_SHA=b591f0ef834d061329707e8841b97ff6a0b3c48b
-          git clone --depth 1 https://invent.kde.org/dkazakov/krita-docker-env.git "$ROOT/docker-env-staging"
+          git clone https://invent.kde.org/dkazakov/krita-docker-env.git "$ROOT/docker-env-staging"
           git -C "$ROOT/docker-env-staging" checkout --detach "$DOCKER_ENV_SHA"
           cp -a "$ROOT/docker-env-staging/." "$ROOT/"
           rm -rf "$ROOT/docker-env-staging"
-          git clone --depth 1 https://invent.kde.org/packaging/krita-deps-management.git "$SRC/krita-deps-management"
+          git clone https://invent.kde.org/packaging/krita-deps-management.git "$SRC/krita-deps-management"
           git -C "$SRC/krita-deps-management" checkout --detach "$DEPS_MGMT_SHA"
-          git clone --depth 1 https://invent.kde.org/packaging/krita-ci-utilities.git "$SRC/krita-deps-management/ci-utilities"
+          git clone https://invent.kde.org/packaging/krita-ci-utilities.git "$SRC/krita-deps-management/ci-utilities"
           git -C "$SRC/krita-deps-management/ci-utilities" checkout --detach "$CI_UTILS_SHA"
           cd "$ROOT"
           ./bin/bootstrap-krita-deps.sh --android=arm64-v8a

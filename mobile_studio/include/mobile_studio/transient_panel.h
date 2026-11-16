@@ -140,14 +140,16 @@ private:
 
     void position()
     {
-        const QSize bounds=parentWidget()->size();
+        QWidget *host=parentWidget();
+        if(!host)return; // unparented panel stays unpositioned
+        const QSize bounds=host->size();
         const QSize preferred=m_preferred.isValid()?m_preferred:
             QSize(450,qMin(440,qMax(1,bounds.height()*3/5)));
         const QSize size(qMin(preferred.width(),qMax(1,bounds.width()-16)),
                          qMin(preferred.height(),qMax(1,bounds.height()-16)));
         QPoint origin((bounds.width()-size.width())/2,(bounds.height()-size.height())/2);
         if(m_anchor) {
-            const QPoint anchor=parentWidget()->mapFromGlobal(m_anchor->mapToGlobal(QPoint()));
+            const QPoint anchor=host->mapFromGlobal(m_anchor->mapToGlobal(QPoint()));
             const int below=anchor.y()+m_anchor->height()+4;
             const int above=anchor.y()-size.height()-4;
             const bool useAbove=below+size.height()>bounds.height()-8 &&

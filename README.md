@@ -1,6 +1,6 @@
 # Krita Mobile Studio (experimental)
 
-Unofficial ARM64 Android build of Krita 5.3.4, patched from KDE tag `v6.0.4`.
+Unofficial ARM64 Android build of Krita 5.3.4, built from KDE source tag `v6.0.4`.
 It keeps Krita's native painting engine and adds a touch-first host, home and
 project gallery, draft/version recovery, and a compact workspace for phones and
 foldables.
@@ -12,7 +12,7 @@ good. Historical notes: [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md).
 
 **Working on the code?** Read [AGENTS.md](AGENTS.md) first. Current handoff:
 [docs/DEVELOPMENT_STATE.md](docs/DEVELOPMENT_STATE.md). PC build status:
-[Issue #1](https://github.com/murrdusa/krita-android-custom-build/issues/1).
+[Issue #1](https://github.com/jpegzilla/krita-android-custom-build/issues/1).
 
 ## Requirements
 
@@ -27,7 +27,7 @@ good. Historical notes: [docs/RELEASE-NOTES.md](docs/RELEASE-NOTES.md).
 ## Build
 
 ```bash
-git clone https://github.com/murrdusa/krita-android-custom-build.git
+git clone https://github.com/jpegzilla/krita-android-custom-build.git
 cd krita-android-custom-build
 bash local-build.sh setup    # first run only: docker env, Qt deps, container
 bash local-build.sh build    # apply patches, incremental compile, package APK
@@ -61,7 +61,8 @@ Useful environment variables:
 On the maintainer's PC, an installed WSL watcher builds pushed `main` commits
 and publishes the result to commit status `local/android-wsl-build` and Issue
 #1. That watcher is not part of this repository; if you run without it, build
-manually as above.
+manually as above. The watcher and its reporting conventions come from the
+upstream `murrdusa/krita-android-custom-build` project.
 
 Detailed Windows/WSL2 setup: [docs/LOCAL-BUILD.md](docs/LOCAL-BUILD.md).
 

@@ -30,28 +30,30 @@ Script: [local-build.sh](../local-build.sh), a thin wrapper around
 4. Still in Ubuntu, run:
 
    ~~~bash
-   git clone https://github.com/murrdusa/krita-android-custom-build.git ~/krita-tablet-customizations
-   cd ~/krita-tablet-customizations
+   git clone https://github.com/jpegzilla/krita-android-custom-build.git ~/krita-android-custom-build
+   cd ~/krita-android-custom-build
    bash local-build.sh build
    ~~~
 
-   The first run downloads KDE's Android build dependencies, creates the build container and compiles Krita from scratch. The first run can still take a long time, and the current v2 patches are experimental.
+   The first run clones and patches the Krita source, downloads the Android build dependencies, creates the build container, and compiles Krita from scratch. The first run can still take a long time.
 
 ## Every future build
 
 After changing files in the GitHub customization repository:
 
 ~~~bash
-cd ~/krita-tablet-customizations
+cd ~/krita-android-custom-build
 git pull --ff-only
 bash local-build.sh build
 ~~~
+
+This manual pull and build applies when you are not using the installed WSL watcher; the watcher already builds pushed `main` commits.
 
 **Do not delete or recreate the local KDE build container** between runs. Keeping its CMake build directory makes this incremental: when only a few source files change, most previously compiled files can be reused.
 
 Other commands:
 
-- Run **bash local-build.sh setup** to prepare dependencies and container without compiling Krita.
+- Run **bash local-build.sh setup** to clone and patch the Krita source and prepare the dependencies and container without compiling Krita.
 - Run **bash local-build.sh patch** to reapply the source patches without compiling.
 - Run **bash local-build.sh status** to list any existing APKs.
 
@@ -90,11 +92,11 @@ The script prints a Windows Explorer path. An equivalent WSL Explorer location i
 \\wsl$\Ubuntu\home\YOUR-LINUX-USERNAME\krita-local-android\persistent\krita-custom-apks
 ~~~
 
-Transfer the APK to your Android tablet. The v2 build is still experimental: retain your original Krita and back up artwork before installation.
+Transfer the APK to your Android tablet. The build is experimental: retain your original Krita and back up artwork before installation.
 
 ## Important notes
 
-- **Current status:** The v1 APK was successfully built; v2 contains new C++ and Java changes and may still fail compilation. Incremental builds help us fix these failures faster.
+- **Current status:** Local incremental WSL builds compile and package the APK. Check [Issue #1](https://github.com/jpegzilla/krita-android-custom-build/issues/1) for the latest exact-commit result before treating a build as good.
 - **Docker error:** Ensure Docker Desktop is running and Ubuntu is enabled under WSL Integration.
 - **Source changes:** The script invokes *git restore* on its **dedicated generated Krita source checkout**, so edit the patch scripts in this customization repository rather than hand-editing tracked files inside the generated source.
 - **No automatic updates:** The setup does not alter your Android tablet or the Krita installed on Windows. It builds APKs locally.

@@ -1,7 +1,7 @@
 # Krita Mobile Studio APK size baseline
 
 Captured 2026-11-08 from the local WSL Android build log, referenced by
-[the latest compiler status issue](https://github.com/murrdusa/krita-android-custom-build/issues/1).
+[the latest compiler status issue](https://github.com/jpegzilla/krita-android-custom-build/issues/1).
 These are **compressed APK file sizes**, not installed bytes, resident RAM
 or peak painting memory. The APK remains a debug build.
 

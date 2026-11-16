@@ -130,6 +130,9 @@ if ! cmake --build . --target install --parallel "${KRITA_BUILD_JOBS:-2}" 2>&1 |
   exit 1
 fi
 cd "$SOURCE"
+# Only harvest APKs produced after this point; stale artifacts must not pass.
+APK_BUILD_MARKER="$BUILDDIR/.apk-build-started"
+touch "$APK_BUILD_MARKER"
 PACKAGE_LOG="$BUILDDIR/mobile-studio-apk-packaging.log"
 if ! python3 build-tools/ci-scripts/build-android-package.py --package-type debug 2>&1 | tee "$PACKAGE_LOG"; then
   echo "ERROR: Mobile Studio Android APK packaging failed" >&2
@@ -143,8 +146,8 @@ DEST="$HOME/persistent/krita-custom-apks"
 mkdir -p "$DEST"
 count=0
 while IFS= read -r -d '' apk; do
-  cp -v "$apk" "$DEST/"
+  cp -p -v "$apk" "$DEST/"
   ((count+=1))
-done < <(find "$KDECI_WORKDIR_PATH/krita/_packaging" -maxdepth 4 -type f -name '*.apk' -print0)
-[[ "$count" -gt 0 ]] || { echo 'No APK found' >&2; exit 1; }
+done < <(find "$KDECI_WORKDIR_PATH/krita/_packaging" -maxdepth 4 -type f -name '*.apk' -newer "$APK_BUILD_MARKER" -print0)
+[[ "$count" -gt 0 ]] || { echo "No APK newer than build start marker; packaging produced no fresh artifact" >&2; exit 1; }
 echo 'APK created. Android app ID: org.krita.mobilestudio.debug.'

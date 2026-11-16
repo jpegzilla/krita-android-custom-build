@@ -134,16 +134,19 @@ def publish_status(sha, state, description, url=""):
     if result.returncode:
         raise RuntimeError("Commit status: " + (result.stderr or result.stdout)[-500:])
 
-def get_dashboard():
+def find_issue(search, title):
+    """Find an issue by exact title; raise if the lookup itself fails."""
     response = gh("issue", "list", "--repo", REPO, "--state", "all",
-                  "--search", '"Latest compiler result" in:title',
-                  "--json", "number,title", "--limit", "50")
+                  "--search", search, "--json", "number,title", "--limit", "50")
     if response.returncode:
         raise RuntimeError("Issue lookup: " + response.stderr[-500:])
     for item in json.loads(response.stdout):
-        if item.get("title") == DASHBOARD:
+        if item.get("title") == title:
             return int(item["number"])
     return None
+
+def get_dashboard():
+    return find_issue('"Latest compiler result" in:title', DASHBOARD)
 
 def update_dashboard(body_path):
     number = get_dashboard()
@@ -173,14 +176,22 @@ def report_completed(watcher):
             + (apk_size_section() if success else "") + "\n" + body)
     issue_url = ""
     if not success:
-        result = gh("issue", "create", "--repo", REPO,
-                    "--title", f"[Local build] Android compile failed at {sha[:12]}",
-                    "--body-file", str(report_path)) if report_path.is_file() else None
-        if result and result.returncode == 0:
-            issue_url = result.stdout.strip().splitlines()[-1]
-            body = f"**Failure diagnostics issue:** {issue_url}\n\n" + body
+        title = f"[Local build] Android compile failed at {sha[:12]}"
+        number = find_issue(f'"{sha[:12]}" in:title', title)
+        if number is not None:
+            issue_url = f"https://github.com/{REPO}/issues/{number}"
+        elif report_path.is_file():
+            result = gh("issue", "create", "--repo", REPO, "--title", title,
+                        "--body-file", str(report_path))
+            if result.returncode == 0:
+                issue_url = result.stdout.strip().splitlines()[-1]
+            else:
+                print("[reporter] Could not create separate failure issue",
+                      flush=True)
         else:
             print("[reporter] Could not create separate failure issue", flush=True)
+        if issue_url:
+            body = f"**Failure diagnostics issue:** {issue_url}\n\n" + body
     temp = BASE / "reporter-latest.md"
     temp.write_text(body[:60000], encoding="utf-8")
     dashboard_url = update_dashboard(temp)

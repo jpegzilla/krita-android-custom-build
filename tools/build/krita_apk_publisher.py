@@ -46,6 +46,27 @@ def github_status(revision, state, description, target):
         pass
 
 
+def gh_checked(description, revision, target, *args, timeout=600):
+    """Run gh; report a failure status if it cannot run or times out."""
+    try:
+        return gh(*args, timeout=timeout)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"[APK publish] {description} failed: {exc}", file=sys.stderr)
+        github_status(revision, "failure", f"APK publish failed: {description}",
+                      target)
+        return None
+
+
+def asset_matches(asset, size, checksum):
+    """Require exact size and, when provided, a matching sha256 digest."""
+    if not isinstance(asset, dict) or asset.get("size") != size:
+        return False
+    remote = str(asset.get("digest") or "")
+    if remote.lower().startswith("sha256:"):
+        return remote.split(":", 1)[1].strip().lower() == checksum.lower()
+    return True
+
+
 def choose_apk(directory):
     choices = sorted(
         (p for p in directory.glob("*.apk")
@@ -96,27 +117,44 @@ def main():
         print("[APK publish] GitHub CLI is not installed. Existing build is safe; "
               "install gh once to enable releases.", file=sys.stderr)
         return 2
-    authorized = gh("auth", "status", timeout=25)
+    authorized = gh_checked("GitHub CLI check", revision, release_url,
+                            "auth", "status", timeout=25)
+    if authorized is None:
+        return 1
     if authorized.returncode:
         print("[APK publish] Existing GitHub CLI authentication is unavailable. "
               "Run 'gh auth login' once if needed.", file=sys.stderr)
         return 2
 
     checksum = sha256(apk)
+    apk_size = apk.stat().st_size
     previous = {}
     try:
         previous = json.loads(args.state_file.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         pass
-    release = release_metadata(tag)
+    try:
+        release = release_metadata(tag)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print("[APK publish] Could not read release metadata: " + str(exc),
+              file=sys.stderr)
+        github_status(revision, "failure",
+                      "APK publish failed: GitHub CLI error", release_url)
+        return 1
     existing_asset = next(
         (asset for asset in (release or {}).get("assets", [])
          if asset.get("name") == ASSET), None)
     if (previous.get("sha256") == checksum and
             previous.get("revision") == revision and existing_asset):
-        github_status(revision, "success", "APK already published on GitHub",direct_url)
-        print("[APK publish] Already published: " + direct_url)
-        return 0
+        if asset_matches(existing_asset, apk_size, checksum):
+            github_status(revision, "success", "APK already published on GitHub",direct_url)
+            print("[APK publish] Already published: " + direct_url)
+            return 0
+        print("[APK publish] Remote asset does not match the local APK; "
+              "refusing to overwrite it.", file=sys.stderr)
+        github_status(revision, "failure",
+                      "APK publish refused: remote asset mismatch", release_url)
+        return 1
 
     notes = (
         "Unofficial experimental ARM64 Krita debug build.\n\n"
@@ -128,11 +166,14 @@ def main():
     title = "Krita Mobile – experimental window preview" if tag != DEFAULT_TAG \
             else "Krita Android – latest test APK"
     if release is None:
-        result = gh("release", "create", tag,
-                    "--repo", REPOSITORY,
-                    "--target", revision,
-                    "--title", title,
-                    "--notes", notes, timeout=90)
+        result = gh_checked("Release creation", revision, release_url,
+                            "release", "create", tag,
+                            "--repo", REPOSITORY,
+                            "--target", revision,
+                            "--title", title,
+                            "--notes", notes, timeout=90)
+        if result is None:
+            return 1
         if result.returncode:
             print("[APK publish] Failed to create GitHub Release: " +
                   (result.stderr or result.stdout)[-650:], file=sys.stderr)
@@ -140,11 +181,12 @@ def main():
             return 1
     else:
         # Keep independent preview tags separate from the stable APK release.
-        result = gh("release", "edit", tag,
-                    "--repo", REPOSITORY,
-                    "--title", title,
-                    "--notes", notes, timeout=90)
-        if result.returncode:
+        result = gh_checked("Release notes update", revision, release_url,
+                            "release", "edit", tag,
+                            "--repo", REPOSITORY,
+                            "--title", title,
+                            "--notes", notes, timeout=90)
+        if result is not None and result.returncode:
             print("[APK publish] Could not update release notes: " +
                   (result.stderr or result.stdout)[-300:], file=sys.stderr)
 
@@ -157,27 +199,38 @@ def main():
                 os.link(apk, path)
             except OSError:
                 shutil.copy2(apk, path)
-            result = gh("release", "upload", tag, str(path),
-                        "--repo", REPOSITORY, "--clobber", timeout=1200)
+            result = gh_checked("APK upload", revision, release_url,
+                                "release", "upload", tag, str(path),
+                                "--repo", REPOSITORY, "--clobber", timeout=1200)
+        if result is None:
+            return 1
         if result.returncode:
             print("[APK publish] Upload failed: " +
                   (result.stderr or result.stdout)[-750:], file=sys.stderr)
             github_status(revision, "failure", "APK upload failed; see GitHub release permissions",release_url)
             return 1
 
-    verified = release_metadata(tag)
+    try:
+        verified = release_metadata(tag)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print("[APK publish] Could not verify the upload: " + str(exc),
+              file=sys.stderr)
+        github_status(revision, "failure",
+                      "APK upload verification failed: GitHub CLI error",
+                      release_url)
+        return 1
     attached = next(
         (a for a in (verified or {}).get("assets", [])
-         if a.get("name") == ASSET and a.get("size", 0) >= MIN_APK_SIZE), None)
+         if a.get("name") == ASSET and asset_matches(a, apk_size, checksum)), None)
     if attached is None:
-        print("[APK publish] GitHub did not confirm the uploaded asset.",
-              file=sys.stderr)
+        print("[APK publish] GitHub did not confirm the uploaded asset "
+              f"(expected {apk_size} bytes).", file=sys.stderr)
         github_status(revision, "failure", "APK upload was not verified",release_url)
         return 1
     record = {
         "revision": revision,
         "source": apk.name,
-        "size": apk.stat().st_size,
+        "size": apk_size,
         "sha256": checksum,
         "url": direct_url,
         "release_tag": tag,

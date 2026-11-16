@@ -1,12 +1,12 @@
 # Development instructions — Krita Mobile Studio
 
-**Read this file at the start of every development session, including a new ChatGPT chat.** Then read [docs/DEVELOPMENT_STATE.md](docs/DEVELOPMENT_STATE.md), the latest GitHub commits, and [local build Issue #1](https://github.com/murrdusa/krita-android-custom-build/issues/1). These are the project handoff, not earlier chat transcripts. Before changing code, check the latest branch state.
+**Read this file at the start of every development session, including a new ChatGPT chat.** Then read [docs/DEVELOPMENT_STATE.md](docs/DEVELOPMENT_STATE.md), the latest GitHub commits, and [local build Issue #1](https://github.com/jpegzilla/krita-android-custom-build/issues/1). These are the project handoff, not earlier chat transcripts. Before changing code, check the latest branch state.
 
 ## Highest priority: time and iteration speed
 
 - **Be autonomous.** Take reasonable engineering decisions and implement as much as possible without requesting user input or approval. Ask only when essential information, device access, credentials, or a consequential decision requires the user. Don't wait idly for a compile: work on the next independent, relevant task while the PC builds.
 - **Use the user's Windows/WSL2 PC for all normal Android compilation and testing.** It is faster than GitHub Actions. Do not trigger GitHub-hosted builds, preflights, or test workflows when the PC watcher is available. Keep cloud Actions manual-only for situations where the PC is genuinely unavailable.
-- **Use the existing GitHub <-> PC workflow.** A code commit to `main` is picked up by the existing local WSL build watcher. The watcher runs the incremental Android build and the companion reporter publishes its result under commit status `local/android-wsl-build` and [Issue #1](https://github.com/murrdusa/krita-android-custom-build/issues/1). Read the **reported revision SHA**, not just the word SUCCESS; results for older commits do not validate newer commits. If a new commit is building, check again when useful, and continue other work meanwhile.
+- **Use the existing GitHub <-> PC workflow.** A code commit to `main` is picked up by the existing local WSL build watcher. The watcher runs the incremental Android build and the companion reporter publishes its result under commit status `local/android-wsl-build` and [Issue #1](https://github.com/jpegzilla/krita-android-custom-build/issues/1). Read the **reported revision SHA**, not just the word SUCCESS; results for older commits do not validate newer commits. If a new commit is building, check again when useful, and continue other work meanwhile.
 - No manual `git pull` or `local-build.sh build` instruction to the user when the watcher is running. The watcher script itself is installed locally and may not be tracked here. Do not pretend to execute commands on the PC: communicate via GitHub commits and read its GitHub results. If the watcher isn't responding, diagnose from available GitHub evidence before asking for intervention.
 - **Batch related changes** into useful compilable increments. Avoid repeated source-only check cycles, long speculative testing plans, reimplementing existing Krita engine behavior, gratuitous abstractions, and large tool-call/commentary overhead. Fix actionable compiler errors from local logs first.
 - **Avoid layered crash fallback and redundant safeguards** for this low-stakes early prototype. Retain enough Qt/logcat logging, clear compiler diagnostics and a usable failure report to fix faults. Don't create elaborate user-facing logging menus. Do not compromise essential document/save correctness or silently lose user content.
@@ -39,7 +39,7 @@ Tests:
 - `python -m unittest discover -s tests/python`
 - Qt tests compile with `-I mobile_studio/include`. `run_mobile_layer_identity_regression.sh` and `run_mobile_layer_reorder_regression.sh` need only a host compiler; the other runners need Qt5.
 
-The manual `Mobile Studio source checks` workflow contains assertions that predate the layout reorg and were already failing. Compare a failed check with the previous commit before treating it as a regression.
+The manual `Mobile Studio source safety checks` workflow is source-only. A failed check is not a compile result.
 
 The watcher builds pushed `main` only. An unmerged branch is built either in WSL with `bash local-build.sh build` or with the manual `build-krita-android.yml` workflow; do not trigger the latter while the PC is available.
 

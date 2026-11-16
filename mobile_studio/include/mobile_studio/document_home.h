@@ -428,7 +428,7 @@ public:
                                                  false,cancelled.get());
                 if(image.isNull())continue;
                 QMetaObject::invokeMethod(qApp,[target,image,row]() {
-                    if(target)target->item(row)->setIcon(QIcon(QPixmap::fromImage(image)));
+                    if(target)if(auto *item=target->item(row))item->setIcon(QIcon(QPixmap::fromImage(image)));
                 },Qt::QueuedConnection);
             }
         });
