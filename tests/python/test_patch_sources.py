@@ -7,6 +7,7 @@ REPO = Path(__file__).resolve().parents[2]
 PATCH_DIR = REPO / "tools" / "patches"
 CORE = REPO / "mobile_studio" / "include" / "mobile_studio"
 SRC = REPO / "mobile_studio" / "src"
+FRAGMENTS = PATCH_DIR / "fragments"
 ROOTS = {"CORE": CORE, "SRC": SRC}
 
 
@@ -20,6 +21,28 @@ def overlay_references(script: Path):
             yield ROOTS[node.left.id], node.right.value
 
 
+def fragment_references(script: Path):
+    tree = ast.parse(script.read_text(encoding="utf-8"))
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+                and node.func.id == "fragment" and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)):
+            yield node.args[0].value
+
+
+def docstrings(tree):
+    found = set()
+    for node in ast.walk(tree):
+        if (isinstance(node, (ast.Module, ast.FunctionDef,
+                              ast.AsyncFunctionDef, ast.ClassDef))
+                and node.body and isinstance(node.body[0], ast.Expr)
+                and isinstance(node.body[0].value, ast.Constant)
+                and isinstance(node.body[0].value.value, str)):
+            found.add(id(node.body[0].value))
+    return found
+
+
 class PatchSourceTests(unittest.TestCase):
     def test_overlay_references_exist(self):
         refs = {ref for script in PATCH_DIR.glob("apply_*.py")
@@ -28,6 +51,27 @@ class PatchSourceTests(unittest.TestCase):
         missing = sorted(str(root / name) for root, name in refs
                          if not (root / name).is_file())
         self.assertEqual(missing, [], "patch scripts reference missing overlay files")
+
+    def test_fragment_references_exist(self):
+        names = {name for script in PATCH_DIR.glob("apply_*.py")
+                 for name in fragment_references(script)}
+        self.assertTrue(names, "no patch fragments found")
+        missing = sorted(name for name in names
+                         if not (FRAGMENTS / name).is_file())
+        self.assertEqual(missing, [], "patch scripts reference missing fragments")
+
+    def test_large_snippets_live_in_fragment_files(self):
+        for script in PATCH_DIR.glob("apply_*.py"):
+            tree = ast.parse(script.read_text(encoding="utf-8"))
+            skip = docstrings(tree)
+            for node in ast.walk(tree):
+                if (isinstance(node, ast.Constant)
+                        and isinstance(node.value, str)
+                        and id(node) not in skip
+                        and node.value.count("\n") + 1 >= 40):
+                    self.fail(f"{script.name}:{node.lineno} embeds a "
+                              f"{node.value.count(chr(10)) + 1}-line snippet; "
+                              "move it to tools/patches/fragments")
 
     def test_apply_all_covers_every_patch(self):
         tree = ast.parse((PATCH_DIR / "apply_all.py").read_text(encoding="utf-8"))

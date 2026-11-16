@@ -5,10 +5,10 @@ MODE=build
 if (( $# > 0 )); then MODE="$1"; fi
 case "$MODE" in setup|build|status|patch) ;; *) echo "Usage: bash local-build.sh [setup|build|status|patch]" >&2; exit 2;; esac
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
-ROOT="$(printenv KRITA_LOCAL_ROOT || echo "$HOME/krita-local-android")"
+ROOT="${KRITA_LOCAL_ROOT:-$HOME/krita-local-android}"
 SOURCE="$ROOT/persistent/krita"
 OUT="$ROOT/persistent/krita-custom-apks"
-JOBS="$(printenv KRITA_BUILD_JOBS || echo 6)"
+JOBS="${KRITA_BUILD_JOBS:-6}"
 say() { printf '\n==> %s\n' "$*"; }
 # APK release publication is opt-in. The GitHub request is a tracked Markdown
 # file so it DOES NOT invalidate the app fingerprint or force a recompile.
@@ -160,7 +160,8 @@ docker exec -u appimage "$NAME" bash -lc 'test -f "$HOME/persistent/krita/build-
     die "Container cannot access source directory"
 if [[ "$MODE" == setup ]]; then say "Setup complete; next run bash local-build.sh build"; exit 0; fi
 say "Build Android ARM64 APK with $JOBS jobs (incremental on future runs)"
-docker exec -i -u appimage -e "KRITA_BUILD_JOBS=$JOBS" "$NAME" \
+docker exec -i -u appimage -e "KRITA_BUILD_JOBS=$JOBS" \
+    -e KRITA_RECONFIGURE="${KRITA_RECONFIGURE:-0}" "$NAME" \
     bash -lc 'bash "$HOME/persistent/krita/build-in-krita-container.sh"'
 say "APK output:"
 [[ -d "$OUT" ]] || die "APK output folder not created"

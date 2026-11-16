@@ -1,6 +1,6 @@
 # GitHub build reporting (WSL)
 
-This companion runs alongside the **existing** `krita_build_watcher.py`. Do not replace or stop the working watcher. The companion reads `.build-watcher/status.json` every 10 seconds and publishes results.
+This companion runs alongside the **existing** `krita_build_watcher.py`. That watcher is installed externally on the PC and is not tracked in this repository. Do not replace or stop the working watcher. The companion reads `.build-watcher/status.json` every 10 seconds and publishes results.
 
 ## One-time setup
 
@@ -11,13 +11,13 @@ sudo apt update
 sudo apt install -y gh
 gh auth login
 gh auth status
-cd ~/krita-tablet-customizations
+cd ~/krita-android-custom-build
 git pull --ff-only
 python3 tools/build/krita_build_reporter.py start
 python3 tools/build/krita_build_reporter.py status
 ```
 
-Log in to GitHub.com as the account with access to `murrdusa/krita-android-custom-build`; choose HTTPS and browser authorization when prompted. The reporter needs permission to create/edit repository issues and commit statuses. It does not need an OpenAI API key.
+Log in to GitHub.com as the account with access to `jpegzilla/krita-android-custom-build`; choose HTTPS and browser authorization when prompted. The reporter needs permission to create/edit repository issues and commit statuses. It does not need an OpenAI API key.
 
 The reporter can be running alongside the existing build watcher. The old watcher keeps its own incremental-build loop.
 
@@ -63,7 +63,7 @@ For a *live viewer* that switches between builds automatically, open an Ubuntu
 terminal and run:
 
 ```bash
-cd ~/krita-tablet-customizations
+cd ~/krita-android-custom-build
 git pull --ff-only
 python3 tools/build/krita_build_live.py
 ```
@@ -127,9 +127,9 @@ As this request file is Markdown, the incremental build fingerprint ignores it:
 **an upload-only request does not itself force a new Android compilation**.
 
 - Stable APK download (after a requested publish):
-  https://github.com/murrdusa/krita-android-custom-build/releases/download/krita-android-latest/krita-android-custom-arm64-debug.apk
+  https://github.com/jpegzilla/krita-android-custom-build/releases/download/krita-android-latest/krita-android-custom-arm64-debug.apk
 - Latest Release page:
-  https://github.com/murrdusa/krita-android-custom-build/releases/tag/krita-android-latest
+  https://github.com/jpegzilla/krita-android-custom-build/releases/tag/krita-android-latest
 - Confirm publication with `local/android-apk-published` commit status
   or verify that the GitHub Release has an attached APK asset.
 

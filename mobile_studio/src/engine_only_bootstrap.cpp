@@ -29,7 +29,12 @@ bool MobileEngineOnlyBootstrap::launch()
     }
     QPointer<MobileLightweightCanvasHost> alive=root;
     QTimer::singleShot(0,root,[alive]() {
-        if(!alive)return;
+        if(!alive) {
+            // avoid a bogus interrupted boot on next launch
+            QSettings settings;
+            MobileEngineOnlyStartupPolicy::complete(settings,false);
+            return;
+        }
         const bool started=MobileKritaStandalonePilot::launch(
             alive.data(),[](bool success) {
                 QSettings settings;

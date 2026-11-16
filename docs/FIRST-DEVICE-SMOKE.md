@@ -12,8 +12,8 @@ panels still require validation. **Only use disposable artwork.**
   in GitHub's `local/android-wsl-build` status. Do not install an
   older APK after a later code change.
 - Find the local Android debug APK in
-  `/home/pokem/krita-local-android/persistent/krita-custom-apks`
-  from WSL or `\\wsl$\Ubuntu\home\pokem\krita-local-android\persistent\krita-custom-apks`
+  `/home/YOUR-LINUX-USERNAME/krita-local-android/persistent/krita-custom-apks`
+  from WSL or `\\wsl$\Ubuntu\home\YOUR-LINUX-USERNAME\krita-local-android\persistent\krita-custom-apks`
   in Explorer, adjusting the distribution name if different.
 - APK publishing to GitHub Releases stays paused. The debug app uses a
   different package identifier from regular Krita.

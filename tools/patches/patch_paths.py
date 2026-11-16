@@ -1,7 +1,19 @@
-"""Paths shared by the Krita source patch scripts."""
+"""Paths and helpers shared by the Krita source patch scripts."""
 from pathlib import Path
 
 PATCH_DIR = Path(__file__).resolve().parent
 REPO = PATCH_DIR.parents[1]
 CORE = REPO / "mobile_studio" / "include" / "mobile_studio"
 SRC = REPO / "mobile_studio" / "src"
+
+
+def fragment(name):
+    """Read an injected source fragment. Not a standalone translation unit."""
+    return (PATCH_DIR / "fragments" / name).read_text(encoding="utf-8")
+
+
+def replace_once(text, old, new, label):
+    count = text.count(old)
+    if count != 1:
+        raise RuntimeError(f"{label}: expected 1 anchor, got {count}")
+    return text.replace(old, new, 1)

@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   krita:
     runs-on: ubuntu-24.04
@@ -36,7 +40,7 @@ jobs:
           bash -n tools/build/build-in-krita-container.sh tools/build/local-build.sh local-build.sh
 
       - name: Reclaim disk space
-        if: ${{ inputs.mode == 'build' || inputs.mode == 'compile' || inputs.mode == 'preflight' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[android-build]') || contains(github.event.head_commit.message, '[android-compile]') || contains(github.event.head_commit.message, '[android-preflight]'))) }}
+        if: inputs.mode != 'validate'
         shell: bash
         run: |
           set -euo pipefail
@@ -60,27 +64,34 @@ jobs:
           touch "$ROOT/persistent/krita/.krita_android_custom_patch_applied"
 
       - name: Validation result (NOT an APK build)
-        if: inputs.mode == 'validate' || (github.event_name == 'push' && !contains(github.event.head_commit.message, '[android-build]') && !contains(github.event.head_commit.message, '[android-compile]') && !contains(github.event.head_commit.message, '[android-preflight]'))
+        if: inputs.mode == 'validate'
         run: echo "Patch applied and diff checked. Android compilation has NOT been tested."
 
       - name: Download KDE Android build support
-        if: ${{ inputs.mode == 'build' || inputs.mode == 'compile' || inputs.mode == 'preflight' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[android-build]') || contains(github.event.head_commit.message, '[android-compile]') || contains(github.event.head_commit.message, '[android-preflight]'))) }}
+        if: inputs.mode != 'validate'
         shell: bash
         run: |
           set -euo pipefail
           ROOT="$HOME/krita-custom-android-build"
           SRC="$ROOT/persistent/krita"
-          git clone --depth 1 https://invent.kde.org/dkazakov/krita-docker-env.git "$ROOT/docker-env-staging"
+          # pinned 2026-11-14; bump deliberately after a successful build.
+          DOCKER_ENV_SHA=2eecb35629790f56e7be6db19cefcb987cf1b503
+          DEPS_MGMT_SHA=0cdfcbf8e10ef18fbd299b29aeb7568ce385e5dc
+          CI_UTILS_SHA=b591f0ef834d061329707e8841b97ff6a0b3c48b
+          git clone https://invent.kde.org/dkazakov/krita-docker-env.git "$ROOT/docker-env-staging"
+          git -C "$ROOT/docker-env-staging" checkout --detach "$DOCKER_ENV_SHA"
           cp -a "$ROOT/docker-env-staging/." "$ROOT/"
           rm -rf "$ROOT/docker-env-staging"
-          git clone --depth 1 https://invent.kde.org/packaging/krita-deps-management.git "$SRC/krita-deps-management"
-          git clone --depth 1 https://invent.kde.org/packaging/krita-ci-utilities.git "$SRC/krita-deps-management/ci-utilities"
+          git clone https://invent.kde.org/packaging/krita-deps-management.git "$SRC/krita-deps-management"
+          git -C "$SRC/krita-deps-management" checkout --detach "$DEPS_MGMT_SHA"
+          git clone https://invent.kde.org/packaging/krita-ci-utilities.git "$SRC/krita-deps-management/ci-utilities"
+          git -C "$SRC/krita-deps-management/ci-utilities" checkout --detach "$CI_UTILS_SHA"
           cd "$ROOT"
           ./bin/bootstrap-krita-deps.sh --android=arm64-v8a
           df -h /
 
       - name: Compile native Krita UI or debug APK in KDE container
-        if: ${{ inputs.mode == 'build' || inputs.mode == 'compile' || inputs.mode == 'preflight' || (github.event_name == 'push' && (contains(github.event.head_commit.message, '[android-build]') || contains(github.event.head_commit.message, '[android-compile]') || contains(github.event.head_commit.message, '[android-preflight]'))) }}
+        if: inputs.mode != 'validate'
         shell: bash
         run: |
           set -euo pipefail
@@ -96,16 +107,14 @@ jobs:
           # or automatically uploading an Android APK.
           COMPILE_ONLY=0
           PREFLIGHT_ONLY=0
-          if [[ "${{ inputs.mode }}" == "preflight" || "${{ contains(github.event.head_commit.message, '[android-preflight]') }}" == "true" ]]; then
-            COMPILE_ONLY=1
-            PREFLIGHT_ONLY=1
-          elif [[ "${{ inputs.mode }}" == "compile" || "${{ contains(github.event.head_commit.message, '[android-compile]') }}" == "true" ]]; then
-            COMPILE_ONLY=1
-          fi
+          case "${{ inputs.mode }}" in
+            preflight) COMPILE_ONLY=1; PREFLIGHT_ONLY=1 ;;
+            compile)   COMPILE_ONLY=1 ;;
+          esac
           docker exec -i -e KRITA_COMPILE_ONLY="$COMPILE_ONLY" -e KRITA_NATIVE_PREFLIGHT_ONLY="$PREFLIGHT_ONLY" -u appimage "$CONTAINER_NAME" bash -lc 'bash "$HOME/persistent/krita/build-in-krita-container.sh"'
 
       - name: Upload APK artifact when available
-        if: ${{ always() && (inputs.mode == 'build' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[android-build]'))) }}
+        if: ${{ always() && inputs.mode == 'build' }}
         uses: actions/upload-artifact@v4
         with:
           name: krita-android-experimental-debug-apk

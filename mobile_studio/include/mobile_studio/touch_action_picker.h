@@ -11,6 +11,7 @@
 
 inline QAction *mobilePickAction(QWidget *parent,const QMenu &menu)
 {
+    if(!parent)return nullptr;
     QDialog dialog(parent);
     dialog.setWindowTitle(menu.title());
     dialog.setStyleSheet(QStringLiteral(
@@ -62,6 +63,7 @@ inline QAction *mobilePickAction(QWidget *parent,const QMenu &menu)
 inline MobileTransientPanel *mobileShowActionList(QWidget *host,QWidget *anchor,const QMenu &menu,
                                  QObject *receiver,std::function<void(const QVariant &)> picked)
 {
+    if(!host)return nullptr;
     if(MobileTransientPanel::closeForAnchor(host,anchor))return nullptr;
     auto *panel=new MobileTransientPanel(host);
     panel->setObjectName(QStringLiteral("mobileContextOptionList"));

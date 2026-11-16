@@ -6,22 +6,20 @@ Runs after refinements/polish so all settings rows are already present.
 from pathlib import Path
 import sys
 
-def replace_one(s,old,new,label):
-    n=s.count(old)
-    if n!=1:raise RuntimeError(f"Tablet scroll {label}: expected one anchor, found {n}")
-    return s.replace(old,new,1)
+from patch_paths import replace_once
+
 
 def main(root):
     path=Path(root)/"libs/ui/KisMainWindow.cpp"
     s=path.read_text(encoding="utf-8")
-    s=replace_one(s,
+    s=replace_once(s,
 '''#include <QDialogButtonBox>
 #include <QCheckBox>''',
 '''#include <QDialogButtonBox>
 #include <QScrollArea>
 #include <QScroller>
 #include <QCheckBox>''',"headers")
-    s=replace_one(s,
+    s=replace_once(s,
 '''        QVBoxLayout *layout = new QVBoxLayout(&dialog);
         layout->setContentsMargins(14,14,14,14);
         layout->setSpacing(10);
@@ -44,7 +42,7 @@ def main(root):
         settingsContent->setContentsMargins(3,4,3,4);
         settingsContent->setSpacing(7);
         QFormLayout *form = new QFormLayout;''',"scroll scaffold")
-    s=replace_one(s,
+    s=replace_once(s,
 '''        layout->addLayout(form);
         QDialogButtonBox *buttons = new QDialogButtonBox(''',
 '''        settingsContent->addLayout(form);
@@ -52,7 +50,7 @@ def main(root):
         settingsScroll->setWidget(settingsPage);
         layout->addWidget(settingsScroll,1);
         QDialogButtonBox *buttons = new QDialogButtonBox(''',"form into scroll")
-    s=replace_one(s,
+    s=replace_once(s,
 '''        dialog.resize(qMax(300,qMin(440,this->width()-30)),
                       qMax(360,qMin(640,this->height()-40)));''',
 '''        dialog.resize(qMax(295,qMin(445,this->width()-24)),

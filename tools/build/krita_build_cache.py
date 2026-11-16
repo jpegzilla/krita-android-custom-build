@@ -11,7 +11,8 @@ import subprocess
 NON_APP={"krita_build_live.py","krita_build_reporter.py","krita_build_cache.py",
          "krita_build_watcher.py","tools/build/krita_build_live.py",
          "tools/build/krita_build_reporter.py","tools/build/krita_build_cache.py",
-         "tools/build/apk_size_report.py",".gitignore"}
+         "tools/build/apk_size_report.py",
+         "tools/build/krita_apk_publisher.py",".gitignore"}
 GENERATED=("libs/ui/tablet_compact_skin.h",
            "libs/ui/standalone_host.h","libs/ui/canvas_session.h",
            "libs/ui/canvas_transfer.h","libs/ui/canvas_surface.h",
@@ -43,7 +44,7 @@ def paths(repo,*args):
 
 def fingerprint(repo):
     h=hashlib.sha256(b"krita-app-inputs-v1\0")
-    for rel in sorted(paths(repo,"ls-files")):
+    for rel in sorted(paths(repo,"ls-files","--cached","--others","--exclude-standard")):
         if (rel in NON_APP or rel.startswith((".github/", "tests/"))
                 or rel.endswith(".md")):
             continue
@@ -54,6 +55,7 @@ def fingerprint(repo):
 
 def snapshot(source,manifest):
     items=set(paths(source,"diff","--name-only","--no-ext-diff"))
+    items.update(paths(source,"ls-files","--others","--exclude-standard"))
     items.update(GENERATED)
     records={}
     for rel in sorted(items):

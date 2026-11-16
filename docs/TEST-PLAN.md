@@ -454,7 +454,7 @@ These are **on-device checks**, not claims of a passed Android test.
 - Repeatedly toggle desktop → mobile → desktop with a modified KRA file.
   Verify the native app's document, layers and pressure-sensitive painting.
   Do not treat these checks as passed until compiled and tested on Android.
-- Run `python3 -m unittest discover -s tests -p 'test_apk_size_report.py'`.
+- Run `python3 -m unittest discover -s tests/python -p 'test_apk_size_report.py'`.
   Source-only CI must run the same suite without assembling/publishing APKs.
 - After a local build, review `apk-size-report.json` and
   `apk-size-history.json` in the APK output folder. The latter stores
